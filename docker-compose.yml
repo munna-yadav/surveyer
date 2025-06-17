@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: spring_postgres
+    environment:
+      POSTGRES_DB: surveydb
+      POSTGRES_USER: munna
+      POSTGRES_PASSWORD: secret123
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - springnet
+
+  app:
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: spring_app
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/surveydb
+      SPRING_DATASOURCE_USERNAME: munna
+      SPRING_DATASOURCE_PASSWORD: secret123
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8080:8080"
+    networks:
+      - springnet
+
+volumes:
+  postgres_data:
+
+networks:
+  springnet:
