@@ -5,6 +5,7 @@ export interface User {
   name: string;
   role: 'CREATOR' | 'RESPONDENT';
   createdAt: string;
+  isEmailVerified?: boolean;
 }
 
 export interface Survey {
@@ -65,6 +66,15 @@ export interface RegisterRequest {
   password: string;
   name: string;
   role: 'CREATOR' | 'RESPONDENT';
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
 }
 
 export interface AuthResponse {

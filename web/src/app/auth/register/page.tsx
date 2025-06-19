@@ -4,13 +4,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Mail, CheckCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -25,6 +26,8 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   const { register } = useAuth();
   const router = useRouter();
@@ -43,6 +46,28 @@ export default function RegisterPage() {
       role: value as 'CREATOR' | 'RESPONDENT',
     });
     setError('');
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.email) {
+      setError('Email is required');
+      return;
+    }
+
+    setResendingEmail(true);
+    try {
+      const result = await authService.resendVerificationEmail({ email: formData.email });
+      if (result.success) {
+        setError('');
+        alert('Verification email sent! Please check your inbox.');
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError('Failed to resend verification email');
+    } finally {
+      setResendingEmail(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,9 +93,9 @@ export default function RegisterPage() {
         ...registrationData,
         role: registrationData.role as 'CREATOR' | 'RESPONDENT'
       };
-      const success = await register(typedRegistrationData);
-      if (success) {
-        router.push('/');
+      const result = await register(typedRegistrationData);
+      if (result) {
+        setSuccess(true);
       }
     } catch (err) {
       setError('Registration failed. Please try again.');
@@ -78,6 +103,70 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">Surveyer</h1>
+            <p className="mt-2 text-gray-600">Registration Successful!</p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-green-600">
+                <CheckCircle className="h-5 w-5" />
+                <span>Check Your Email</span>
+              </CardTitle>
+              <CardDescription>
+                We've sent you a verification email
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <Mail className="h-4 w-4" />
+                <AlertDescription>
+                  A verification email has been sent to <strong>{formData.email}</strong>. 
+                  Please check your inbox and click the verification link to activate your account.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Didn't receive the email? Check your spam folder or click below to resend.
+                </p>
+                
+                <Button 
+                  onClick={handleResendVerification}
+                  disabled={resendingEmail}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {resendingEmail ? 'Sending...' : 'Resend Verification Email'}
+                </Button>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-600">
+                  Ready to sign in?{' '}
+                  <Link href="/auth/login" className="font-medium text-blue-600 hover:text-blue-500">
+                    Go to Login
+                  </Link>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Mail } from 'lucide-react';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -19,6 +20,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   const { login, user } = useAuth();
   const router = useRouter();
@@ -38,12 +41,38 @@ export default function LoginPage() {
       [e.target.name]: e.target.value,
     });
     setError('');
+    setShowResendVerification(false);
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.username) {
+      setError('Please enter your username first');
+      return;
+    }
+
+    setResendingEmail(true);
+    try {
+      // We'll use the username as email for now - ideally backend should support username lookup
+      const result = await authService.resendVerificationEmail({ email: formData.username });
+      if (result.success) {
+        setError('');
+        alert('Verification email sent! Please check your inbox.');
+        setShowResendVerification(false);
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError('Failed to resend verification email');
+    } finally {
+      setResendingEmail(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setShowResendVerification(false);
 
     try {
       console.log('Submitting login form...');
@@ -56,9 +85,15 @@ export default function LoginPage() {
           router.push('/');
         }, 100);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error in component:', err);
-      setError('Login failed. Please try again.');
+      const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
+      setError(errorMessage);
+      
+      // Show resend verification option if email verification is required
+      if (errorMessage.toLowerCase().includes('verify your email')) {
+        setShowResendVerification(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -87,6 +122,24 @@ export default function LoginPage() {
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {showResendVerification && (
+                <Alert>
+                  <Mail className="h-4 w-4" />
+                  <AlertDescription>
+                    Your email needs to be verified before you can log in.
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="p-0 h-auto font-semibold text-blue-600"
+                      onClick={handleResendVerification}
+                      disabled={resendingEmail}
+                    >
+                      {resendingEmail ? 'Sending...' : 'Resend verification email'}
+                    </Button>
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -129,6 +182,16 @@ export default function LoginPage() {
                     )}
                   </Button>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div></div>
+                <Link 
+                  href="/auth/forgot-password" 
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                >
+                  Forgot password?
+                </Link>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
